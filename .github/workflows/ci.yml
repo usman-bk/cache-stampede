@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - run: go build ./...
+      - run: go vet ./...
+      - name: Formatting
+        run: |
+          u=$(gofmt -l .)
+          if [ -n "$u" ]; then echo "gofmt would change:"; echo "$u"; exit 1; fi
+
+      - name: Test with nothing external
+        run: go test -race ./...
+
+      - name: Test against Redis
+        env:
+          REDIS_URL: redis://localhost:6379/10
+        run: go test -race ./...
+
+      # The collapse is a concurrency property, and one that holds once is
+      # not a property. Run it repeatedly.
+      - name: Hammer the collapse
+        run: go test -race -count=10 ./internal/single/ ./internal/cachet/ -run 'Collaps|OneOriginCall|OneCallForMany'
+
+      - name: Show the before and after
+        env:
+          REDIS_URL: redis://localhost:6379/10
+        run: go run ./cmd/stampede

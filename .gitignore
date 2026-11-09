@@ -1,0 +1,7 @@
+/stampede
+/dist/
+*.test
+*.out
+/vendor/
+.env
+.DS_Store
