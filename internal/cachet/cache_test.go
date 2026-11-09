@@ -99,7 +99,9 @@ func seeded(seed int64) func() *rand.Rand {
 // TestTwoThousandCallersMakeOneOriginCall is the whole repository in one
 // test. A popular key is cold and two thousand requests arrive together.
 func TestTwoThousandCallersMakeOneOriginCall(t *testing.T) {
-	o := &slowOrigin{delay: 30 * time.Millisecond}
+	// Long enough for all of them to arrive on a two core CI runner. A caller
+	// that lands after the origin returns is a cache hit, not a collapse.
+	o := &slowOrigin{delay: 500 * time.Millisecond}
 	c, _, _ := newCache(t, o, time.Minute)
 
 	const callers = 2000
